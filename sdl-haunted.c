@@ -207,6 +207,9 @@ char getkey();
 int read_command(char *target);
 void writechar(char c);
 int action(char *target);
+int subaction(char *target, int location);
+char* get_object(int index);
+int object_count();
 
 
 /* The game's vocabulary -- in the original BASIC, the V$() and O$() arrays */
@@ -410,7 +413,7 @@ int main(int argc, char **argv)
         {
             continue;
         }
-
+printf("Command: [%s]\n", gl_command);
         /* Remove trailing newline, if present */
         s = strchr(gl_command, '\n');
         if (s) *s = 0;    
@@ -1105,11 +1108,14 @@ int action(char *target)
 {
     char command;
     int index = 8;
+    int height = renderer_font_height() + 2;
+    int verbs = 25 - 8;
+    int length;
     
     while(1)
     {
-        renderer_fill_rect(160, 4, display_width - 160, display_height - 8, 0x66, 0x66, 0x66);
-        renderer_fill_rect(162, 6, display_width - 4, display_height - 12, 0xAA, 0xAA, 0xAA);
+        renderer_fill_rect(160, 4, display_width - 100, (height * (verbs+1)) + 12, 0x66, 0x66, 0x66);
+        renderer_fill_rect(162, 6, display_width - 64, (height * (verbs+1)) + 8, 0xAA, 0xAA, 0xAA);
         
         cursor.x = 166;
         cursor.y = 10;
@@ -1124,7 +1130,7 @@ int action(char *target)
             print_text(gl_vocab.verb[i]);
             
             cursor.x = 166;
-            cursor.y += renderer_font_height() + 2;
+            cursor.y += height;
         }
         
         command = getkey();
@@ -1132,6 +1138,16 @@ int action(char *target)
         if(command == 'A')
         {
             strcpy(target, gl_vocab.verb[index]);
+printf("Object count is %d, ", object_count());
+            if(index > 9 && object_count() > 0) 
+            {
+                length = strlen(target);
+                target[length] = ' ';
+                target += length+1;
+                
+                return subaction((char *)(target), height * (index - 8));
+            }
+            
             return 1;
         }
         
@@ -1144,4 +1160,114 @@ int action(char *target)
         if(command == 'N') index = (index <= 8 ? 8 : index-1);
         if(command == 'S') index = (index >= 25 ? 25 : index+1);
     }
+}
+
+int subaction(char *target, int location)
+{
+    char command;
+    char *object;
+    
+    int count = object_count();
+    int height = renderer_font_height() + 2;
+    int window_height = count * height;
+    
+    int index = 0;
+    int i;
+    
+    while(1)
+    {
+        renderer_fill_rect(200, location - 6, display_width - 140, location + window_height + 12, 0x66, 0x66, 0x66);
+        renderer_fill_rect(202, location - 4, display_width - 64, location + window_height + 8, 0xAA, 0xAA, 0xAA);
+        
+        cursor.x = 206;
+        cursor.y = location;
+        
+        for(i = 0; i < count; i++)
+        {
+            object = get_object(i);
+            
+            if(i == index)
+            {
+                renderer_fill_rect(cursor.x - 1, cursor.y - 1, renderer_font_width(object) + 2, renderer_font_height() + 2, 0x00, 0x00, 0x00);
+            }
+
+            print_text(object);
+
+            cursor.x = 206;
+            cursor.y += height;
+        }
+        
+        command = getkey();
+        
+        if(command == 'A')
+        {
+            strcpy(target, get_object(index));
+            return 1;
+        }
+        
+        if(command == 'B')
+        {
+            target[0] = '\0';
+            return 0;
+        }
+        
+        if(command == 'N') index = (index <= 0 ? 0 : index-1);
+        if(command == 'S') index = (index >= count-1 ? count-1 : index+1);
+    }
+}
+
+char* get_object(int index)
+{
+    int object = 0;
+    int i;
+    
+    // Objects in the room
+    for(i = 1; i <= OBJECT_COUNT; i++)
+    {
+        if(gl_state.location[i] == gl_state.rm && gl_state.flag[i] == 0)
+        {
+            if(object == index) return gl_vocab.obj[i];
+            
+            object++;
+        }
+    }
+    
+    // Inventory objects
+    for(i = 1; i <= OBJECT_COUNT; i++)
+    {
+        if(gl_state.carried[i])
+        {
+            if(object == index) return gl_vocab.obj[i];
+            
+            object++;
+        }
+    }
+    
+    return NULL;
+}
+
+int object_count()
+{
+    int count = 0;
+    int i;
+    
+    // Objects in the room
+    for(i = 1; i <= OBJECT_COUNT; i++)
+    {
+        if(gl_state.location[i] == gl_state.rm && gl_state.flag[i] == 0)
+        {
+            count++;
+        }
+    }
+    
+    // Inventory objects
+    for(i = 1; i <= OBJECT_COUNT; i++)
+    {
+        if(gl_state.carried[i])
+        {
+            count++;
+        }
+    }
+    
+    return count;
 }

@@ -1,4 +1,4 @@
-# haunted
+# Haunted House (Usborne Adventure Program)
 A classic Usborne text adventure ported to an SDL interface for RetroFW. 
 
 The original *Haunted House* adventure was written in BASIC and published in the [Usborne](https://usborne.com/browse-books/features/computer-and-coding-books/) book [Write your own Adventure Programs for your Microcomputer](https://drive.google.com/open?id=0Bxv0SsvibDMTYkFJbUswOHFQclE).

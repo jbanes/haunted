@@ -1,0 +1,6 @@
+.DS_Store
+haunted
+nbproject/**
+dist/**
+*.o
+*.dge

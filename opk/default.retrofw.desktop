@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Haunted House
+Comment=Classic adventure
+Exec=haunted.dge
+Terminal=false
+Type=Application
+StartupNotify=false
+Icon=haunted
+Categories=games;

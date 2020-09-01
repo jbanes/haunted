@@ -20,7 +20,7 @@ Enhanced SDL edition for RetroFW by Jerason Banes
 
 /* Counts of fixed-size arrays */
 #define ROOM_COUNT   64
-#define VERB_COUNT   28
+#define VERB_COUNT   27
 #define WORD_COUNT   36
 #define OBJECT_COUNT 18
 
@@ -28,7 +28,7 @@ Enhanced SDL edition for RetroFW by Jerason Banes
  * object numbers. In C we can at least use the preprocessor 
  * to make things a little more readable */
 #define OBJ_NULL       0    /* Flag 0 => candle lit */
-#define OBJ_PAINTING    1
+#define OBJ_PAINTING   1
 #define OBJ_RING       2
 #define OBJ_SPELLS     3
 #define OBJ_GOBLET     4
@@ -38,16 +38,16 @@ Enhanced SDL edition for RetroFW by Jerason Banes
 #define OBJ_CANDLESTICK 8
 #define OBJ_MATCHES    9
 #define OBJ_VACUUM    10
-#define OBJ_BATTERIES  11
+#define OBJ_BATTERIES 11
 #define OBJ_SHOVEL    12
 #define OBJ_AXE       13
 #define OBJ_ROPE      14
 #define OBJ_BOAT      15
-#define OBJ_AEROSOL    16
+#define OBJ_AEROSOL   16
 #define OBJ_CANDLE    17
 #define OBJ_KEY       18
 #define OBJ_NORTH     19
-#define OBJ_SOUTH       20
+#define OBJ_SOUTH     20
 #define OBJ_WEST      21
 #define OBJ_EAST      22
 #define OBJ_UP        23    /* Flag 23 => Front door open */
@@ -58,16 +58,16 @@ Enhanced SDL edition for RetroFW by Jerason Banes
 #define OBJ_DRAWER    28
 #define OBJ_DESK      29
 #define OBJ_COAT      30
-#define OBJ_RUBBISH    31
+#define OBJ_RUBBISH   31
 #define OBJ_COFFIN    32
 #define OBJ_BOOKS     33
-#define OBJ_XZANFAR    34    /* Flag 34 => magical barrier has been removed */
+#define OBJ_XZANFAR   34    /* Flag 34 => magical barrier has been removed */
 #define OBJ_WALL      35    /* Flag 35 => move was successful */
-#define OBJ_SPELLS2    36
+#define OBJ_SPELLS2   36
 
 #define VERB_NULL      0
 #define VERB_HELP      1
-#define VERB_INVENTORY  2
+#define VERB_INVENTORY 2
 #define VERB_GO        3
 #define VERB_NORTH     4
 #define VERB_SOUTH     5
@@ -78,22 +78,21 @@ Enhanced SDL edition for RetroFW by Jerason Banes
 #define VERB_GET      10
 #define VERB_TAKE     11
 #define VERB_OPEN     12
-#define VERB_EXAMINE   13
+#define VERB_EXAMINE  13
 #define VERB_READ     14
 #define VERB_SAY      15
 #define VERB_DIG      16
 #define VERB_SWING    17
 #define VERB_CLIMB    18
 #define VERB_LIGHT    19
-#define VERB_UNLIGHT   20
+#define VERB_UNLIGHT  20
 #define VERB_SPRAY    21
 #define VERB_USE      22
-#define VERB_UNLOCK    23
+#define VERB_UNLOCK   23
 #define VERB_LEAVE    24
 #define VERB_SCORE    25
 #define VERB_SAVE     26
 #define VERB_LOAD     27
-#define VERB_QUIT     28
 
 #define ROOM_DCORNER    0
 #define ROOM_OGARDEN    1
@@ -184,7 +183,6 @@ gfx_cursor cursor;
 char gamePath[256];
 
 /* Prototypes for what, in BASIC, would be line-numbered subroutines */
-void help();
 void inventory();
 void move();
 void get();
@@ -204,11 +202,11 @@ void leave();
 void score();
 void save();
 void load();
-void quit();
 
 char getkey();
 int read_command(char *target);
 void writechar(char c);
+int action(char *target);
 
 
 /* The game's vocabulary -- in the original BASIC, the V$() and O$() arrays */
@@ -227,9 +225,9 @@ struct vocab
       "COFFIN","BOOKS","XZANFAR","WALL","SPELLS" },
     /* Verbs */
     { "",
-      "HELP","CARRYING?","GO","N","S","W","E","U","D","GET","TAKE","OPEN","EXAMINE","READ","SAY",
+      "HELP","CARRYING?","GO","N","S","W","E","UP","DOWN","GET","TAKE","OPEN","EXAMINE","READ","SAY",
       "DIG","SWING","CLIMB","LIGHT","UNLIGHT","SPRAY","USE","UNLOCK","LEAVE","SCORE",
-      "SAVE","LOAD","QUIT" }
+      "SAVE","LOAD" }
 };
 
 /* The game's state. This is all stored in one structure to make it easy to do the 
@@ -389,7 +387,9 @@ int main(int argc, char **argv)
             writechar(gl_state.route[gl_state.rm][i]);
             /* writechar(','); */
         }
+        
         writechar('\n');
+        
         /* List objects (if any) present */
         for (i = 1; i <= OBJECT_COUNT; i++)
         {
@@ -399,17 +399,16 @@ int main(int argc, char **argv)
                 print_text(text);
             }
         }
+        
         sprintf(text, "=========================\n%s\n", gl_msg);
         print_text(text);
         
-        gl_msg = "WHAT";
         print_text("WHAT WILL YOU DO NOW?");
         
         /* Read player input */
         if(!read_command(gl_command))
         {
-            print_text("THANKS FOR PLAYING\n");
-            return 1;
+            continue;
         }
 
         /* Remove trailing newline, if present */
@@ -431,10 +430,13 @@ int main(int argc, char **argv)
             gl_noun[0] = 0;
             strcpy(gl_verb, gl_command);
         }
+        
         /* Match verb and noun against vocab. Verb/noun numbers
          * 0 are used to mean 'unknown', so the vocab tables are 1-based. */
         gl_vb = VERB_NULL;
         gl_ob = OBJ_NULL;
+        gl_msg = "WHAT";
+        
         for (i = 1; i <= VERB_COUNT; i++)
         {
             if (!strcmp(gl_verb, gl_vocab.verb[i]))
@@ -443,6 +445,7 @@ int main(int argc, char **argv)
                 break;
             }
         }
+        
         for (i = 1; i <= WORD_COUNT; i++)
         {
             if (!strcmp(gl_noun, gl_vocab.obj[i]))
@@ -451,6 +454,7 @@ int main(int argc, char **argv)
                 break;
             }
         }
+        
         if (gl_noun[0] != 0 && gl_ob == OBJ_NULL) /* Unrecognised noun string */
             gl_msg = "THAT'S SILLY";
         if (gl_noun[0] == 0)                /* Verb only */
@@ -494,7 +498,6 @@ int main(int argc, char **argv)
         /* Handle the appropriate verb. */
         switch(gl_vb)
         {
-            case VERB_HELP:      help(); break;
             case VERB_INVENTORY:  inventory(); break;
             case VERB_GO:        
             case VERB_NORTH:    
@@ -521,7 +524,6 @@ int main(int argc, char **argv)
             case VERB_SCORE:     score(); break;
             case VERB_SAVE:      save(); break;
             case VERB_LOAD:      load(); break;
-            case VERB_QUIT:      quit(); break;
 
         }
         /* If the candle is waning or out, append a warning.
@@ -545,24 +547,6 @@ int main(int argc, char **argv)
     SDL_Quit();
 
     return 0;
-}
-
-void help()
-{
-    int i;
-    char text[256];
-
-    print_text("WORDS I KNOW:\n");
-    for (i = 1; i <= VERB_COUNT; i++)
-    {
-        /* Again, it would be better to be rid of the trailing comma */
-        if (i > 1) writechar(',');
-        sprintf(text, "%s", gl_vocab.verb[i]);
-        print_text(text);
-    }
-    writechar('\n');
-    gl_msg = "";
-    getkey();
 }
 
 void inventory()
@@ -981,7 +965,6 @@ void save()
     gl_msg = "NOT SAVED";
     print_text("SAVE POSITION TO FILE>");
     
-//    if (!fgets(savename, sizeof(savename) - 1, stdin))
     if(!read_command(savename))
     {
         return;
@@ -1020,7 +1003,7 @@ void load()
     print_text("LOAD POSITION FROM FILE>");
     
     gl_msg = "NOT LOADED";
-//    if (!fgets(savename, sizeof(savename) - 1, stdin))
+    
     if(!read_command(savename))
     {
         return;
@@ -1053,38 +1036,6 @@ void load()
         memcpy(&gl_state, &tempstate, sizeof(gl_state));
     }
 }
-
-void quit()
-{
-    print_text("WANT TO QUIT?");
-
-    while (1)
-    {
-        char c = getchar();
-
-        if (c == 'N' || c == 'n') return;
-        if (c == 'Y' || c == 'y' || c == EOF) break;
-    }
-
-    print_text("\nLIKE TO SAVE THE GAME FIRST?");
-
-    while (1)
-    {
-        char c = getchar();
-
-        if (c == 'N' || c == 'n' || c == EOF) break;
-        if (c == 'Y' || c == 'Y') 
-        {
-            save();
-            break;
-        }
-    }
-
-
-    print_text("THANKS FOR PLAYING\n");
-    exit(0);
-}
-
 
 char getkey()
 {
@@ -1127,8 +1078,15 @@ int read_command(char *target)
 {
     char command = getkey();
     
-    target[0] = command;
-    target[1] = '\0';
+    if(command == 'A')
+    {
+        return action(target);
+    }
+    else
+    {
+        target[0] = command;
+        target[1] = '\0';
+    }
     
     return 1;
 }
@@ -1141,4 +1099,49 @@ void writechar(char c)
     text[1] = '\0';
     
     print_text(text);
+}
+
+int action(char *target)
+{
+    char command;
+    int index = 8;
+    
+    while(1)
+    {
+        renderer_fill_rect(160, 4, display_width - 160, display_height - 8, 0x66, 0x66, 0x66);
+        renderer_fill_rect(162, 6, display_width - 4, display_height - 12, 0xAA, 0xAA, 0xAA);
+        
+        cursor.x = 166;
+        cursor.y = 10;
+        
+        for(int i=8; i<=25; i++) // TODO: Better define limit of commands
+        {
+            if(i == index)
+            {
+                renderer_fill_rect(cursor.x - 1, cursor.y - 1, renderer_font_width(gl_vocab.verb[i]) + 2, renderer_font_height() + 2, 0x00, 0x00, 0x00);
+            }
+            
+            print_text(gl_vocab.verb[i]);
+            
+            cursor.x = 166;
+            cursor.y += renderer_font_height() + 2;
+        }
+        
+        command = getkey();
+        
+        if(command == 'A')
+        {
+            strcpy(target, gl_vocab.verb[index]);
+            return 1;
+        }
+        
+        if(command == 'B')
+        {
+            target[0] = '\0';
+            return 0;
+        }
+        
+        if(command == 'N') index = (index <= 8 ? 8 : index-1);
+        if(command == 'S') index = (index >= 25 ? 25 : index+1);
+    }
 }

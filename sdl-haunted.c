@@ -1165,15 +1165,46 @@ void writechar(char c)
 
 char* object_command(int verb, int offset)
 {
+    int count = 0;
+    
     switch(verb)
     {
         case VERB_CLIMB:
             if(offset == 0) return gl_vocab.obj[OBJ_ROPE];
             break;
+        case VERB_DIG:
+            if(gl_state.carried[OBJ_SHOVEL]) return gl_vocab.obj[OBJ_SHOVEL];
+            break;
+        case VERB_LEAVE:
+            for(int i = 1; i <= OBJECT_COUNT; i++)
+            {
+                if(gl_state.carried[i])
+                {
+                    if(offset == count) return gl_vocab.obj[i];
+                    
+                    count++;
+                }
+            }
+            break;
+        case VERB_SWING:
+            if(gl_state.carried[OBJ_AXE] && offset == 0) return gl_vocab.obj[OBJ_AXE];
+            else return gl_vocab.obj[OBJ_ROPE];
+            break;
+        case VERB_TAKE:
+            for(int i = 1; i <= OBJECT_COUNT; i++)
+            {
+                if(gl_state.location[i] == gl_state.rm && gl_state.flag[i] == 0) 
+                {
+                    if(offset == count) return gl_vocab.obj[i];
+                            
+                    count++;
+                }
+            }
+            break;
         default:
             return get_object(offset);
     }
-
+    
     return NULL;
 }
 
@@ -1190,6 +1221,25 @@ void object_counts(int verbs, int *commands, int *counts)
             case VERB_CLIMB:
                 if(gl_state.rm == ROOM_TREE && !gl_state.carried[OBJ_ROPE]) count++;
                 break;
+            case VERB_DIG:
+                if(gl_state.carried[OBJ_SHOVEL]) count++;
+                break;
+            case VERB_LEAVE:
+                for(int i = 1; i <= OBJECT_COUNT; i++)
+                {
+                    if(gl_state.carried[i]) count++;
+                }
+                break;
+            case VERB_SWING:
+                if(gl_state.carried[OBJ_AXE]) count++;
+                if(gl_state.rm == ROOM_TREE && !gl_state.carried[OBJ_ROPE]) count++;
+                break;
+            case VERB_TAKE:
+                for(int i = 1; i <= OBJECT_COUNT; i++)
+                {
+                    if(gl_state.location[i] == gl_state.rm && gl_state.flag[i] == 0) count++;
+                }
+                break;
             default:
                 count = object_count();
         }
@@ -1205,6 +1255,7 @@ int action(char *target)
     int length;
     
     int index = 0;
+    int offset = 0;
     int total = 0;
     int selected = 0;
     
@@ -1229,12 +1280,13 @@ int action(char *target)
         
         cursor.x = 176;
         cursor.y = 10;
+        offset = 0;
         
         for(int i=0; i<verbs; i++) 
         {
             if(counts[i] < 1) continue;
             
-            if(i == index)
+            if(offset == index)
             {
                 renderer_fill_rect(cursor.x - 1, cursor.y - 1, renderer_font_width(gl_vocab.verb[commands[i]]) + 2, renderer_font_height() + 2, 0x00, 0x00, 0x00);
                 
@@ -1245,13 +1297,14 @@ int action(char *target)
             
             cursor.x = 176;
             cursor.y += height;
+            offset++;
         }
         
         command = getkey();
         
         if(command == 'A')
         {
-            strcpy(target, gl_vocab.verb[commands[index]]);
+            strcpy(target, gl_vocab.verb[commands[selected]]);
             
             if(counts[selected] > 0) 
             {

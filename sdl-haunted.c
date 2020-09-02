@@ -207,7 +207,7 @@ char getkey();
 int read_command(char *target);
 void writechar(char c);
 int action(char *target);
-int subaction(char *target, int location);
+int subaction(char *target, int verb, int count, int location);
 char* get_object(int index);
 int object_count();
 
@@ -431,7 +431,8 @@ int main(int argc, char **argv)
         {
             continue;
         }
-        
+printf("Command: [%s]\n", gl_command);
+fflush(stdout);
         /* Remove trailing newline, if present */
         s = strchr(gl_command, '\n');
         if (s) *s = 0;    
@@ -1162,30 +1163,85 @@ void writechar(char c)
     print_text(text);
 }
 
+char* object_command(int verb, int offset)
+{
+    switch(verb)
+    {
+        case VERB_CLIMB:
+            if(offset == 0) return gl_vocab.obj[OBJ_ROPE];
+            break;
+        default:
+            return get_object(offset);
+    }
+
+    return NULL;
+}
+
+void object_counts(int verbs, int *commands, int *counts)
+{
+    int count;
+    
+    for(int i=0; i<verbs; i++)
+    {
+        count = 0;
+        
+        switch(commands[i])
+        {
+            case VERB_CLIMB:
+                if(gl_state.rm == ROOM_TREE && !gl_state.carried[OBJ_ROPE]) count++;
+                break;
+            default:
+                count = object_count();
+        }
+        
+        counts[i] = count;
+    }
+}
+
 int action(char *target)
 {
     char command;
-    int index = 8;
     int height = renderer_font_height() + 2;
-    int verbs = 25 - 8;
     int length;
+    
+    int index = 0;
+    int total = 0;
+    int selected = 0;
+    
+    int verbs = 13;
+    int counts[13];
+    int commands[13] = {
+        VERB_CLIMB, VERB_DIG, VERB_EXAMINE, VERB_OPEN, VERB_LEAVE, VERB_LIGHT,
+        VERB_READ, VERB_SAY, VERB_SPRAY, VERB_SWING, VERB_TAKE, VERB_UNLIGHT,
+        VERB_UNLOCK
+    };
+    
+    // Load command sub-action counts
+    object_counts(verbs, (int*)&commands, (int*)&counts);
+    
+    // Compute number of items available
+    for(int i=0; i<verbs; i++) total += (counts[i] ? 1 : 0);
     
     while(1)
     {
-        renderer_fill_rect(160, 4, 84, (height * (verbs+1)) + 10, 0x66, 0x66, 0x66);
-        renderer_fill_rect(162, 6, 82, (height * (verbs+1)) + 6, 0xAA, 0xAA, 0xAA);
+        renderer_fill_rect(160, 4, 84, (height * total) + 10, 0x66, 0x66, 0x66);
+        renderer_fill_rect(162, 6, 82, (height * total) + 6, 0xAA, 0xAA, 0xAA);
         
         cursor.x = 176;
         cursor.y = 10;
         
-        for(int i=8; i<=25; i++) // TODO: Better define limit of commands
+        for(int i=0; i<verbs; i++) 
         {
+            if(counts[i] < 1) continue;
+            
             if(i == index)
             {
-                renderer_fill_rect(cursor.x - 1, cursor.y - 1, renderer_font_width(gl_vocab.verb[i]) + 2, renderer_font_height() + 2, 0x00, 0x00, 0x00);
+                renderer_fill_rect(cursor.x - 1, cursor.y - 1, renderer_font_width(gl_vocab.verb[commands[i]]) + 2, renderer_font_height() + 2, 0x00, 0x00, 0x00);
+                
+                selected = i;
             }
             
-            print_text(gl_vocab.verb[i]);
+            print_text(gl_vocab.verb[commands[i]]);
             
             cursor.x = 176;
             cursor.y += height;
@@ -1195,15 +1251,15 @@ int action(char *target)
         
         if(command == 'A')
         {
-            strcpy(target, gl_vocab.verb[index]);
+            strcpy(target, gl_vocab.verb[commands[index]]);
             
-            if(index > 9 && object_count() > 0) 
+            if(counts[selected] > 0) 
             {
                 length = strlen(target);
                 target[length] = ' ';
                 target += length+1;
                 
-                return subaction((char *)(target), height * (index - 8));
+                return subaction((char *)(target), commands[selected], counts[selected], height * index);
             }
             
             return 1;
@@ -1218,17 +1274,16 @@ int action(char *target)
         if(command == 'N') index--;
         if(command == 'S') index++;
         
-        if(index < 8) index += (25-8+1);
-        if(index > 25) index -= (25-8+1);
+        if(index < 0) index += total;
+        if(index >= total) index -= total;
     }
 }
 
-int subaction(char *target, int location)
+int subaction(char *target, int verb, int count, int location)
 {
     char command;
     char *object;
     
-    int count = object_count();
     int height = renderer_font_height() + 2;
     int window_height = count * height;
     int max_height = location + window_height + 10;
@@ -1237,6 +1292,7 @@ int subaction(char *target, int location)
     int i;
     
     if(max_height > display_height) location -= (max_height - display_height);
+    if(location - 6 < renderer_font_height()) location = renderer_font_height() + 6;
     
     while(1)
     {
@@ -1248,7 +1304,7 @@ int subaction(char *target, int location)
         
         for(i = 0; i < count; i++)
         {
-            object = get_object(i);
+            object = object_command(verb, i);
             
             if(i == index)
             {
@@ -1265,7 +1321,7 @@ int subaction(char *target, int location)
         
         if(command == 'A')
         {
-            strcpy(target, get_object(index));
+            strcpy(target, object_command(verb, index));
             return 1;
         }
         

@@ -346,6 +346,7 @@ void initialise()
 
 void clear()
 {
+    int score = 0, i = 0;
     int height = renderer_font_height();
     gfx_cursor title = {160 , 2};
     
@@ -359,6 +360,23 @@ void clear()
     renderer_clear(0, 0, 0);
     renderer_fill_rect(0, 0, display_width, renderer_font_height() + 4, 0x00, 0x00, 0x66);
     renderer_font_print(&title, name);
+    
+    // Compute score
+    for(score = 0, i = 1; i <= OBJECT_COUNT; i++)
+    {
+        if(gl_state.carried[i]) ++score;
+    }
+    
+    if(score == 17 && gl_state.carried[OBJ_BOAT] == 0)
+    {
+        if(gl_state.rm == ROOM_GATE) score *= 2;
+    }
+    
+    sprintf(text, "Score: %d", score);
+    
+    title.x = display_width - renderer_font_width(text) - 2;
+    
+    renderer_font_print(&title, text);
 }
 
 int main(int argc, char **argv)
@@ -413,7 +431,7 @@ int main(int argc, char **argv)
         {
             continue;
         }
-printf("Command: [%s]\n", gl_command);
+        
         /* Remove trailing newline, if present */
         s = strchr(gl_command, '\n');
         if (s) *s = 0;    
@@ -745,17 +763,51 @@ void examine()
                 break;
         case OBJ_DRAWER:
         case OBJ_DESK: 
-                gl_msg = "THERE IS A DRAWER"; 
+                gl_msg = "You carefully examine the desk from all sides. The only thing you find is a single DRAWER."; 
                 break;
         case OBJ_BOOKS:
         case OBJ_SCROLL:  
                 vread(); 
                 break;
         case OBJ_WALL: 
-                if (gl_state.rm == ROOM_STUDY) gl_msg = "THERE IS SOMETHING BEYOND.."; 
+                if(gl_state.rm == ROOM_STUDY) gl_msg = "THERE IS SOMETHING BEYOND..."; 
                 break;
         case OBJ_COFFIN: 
                 vopen(); 
+                break;
+        case OBJ_VACUUM:
+                gl_msg = "You see an Electrolux standup model vacuum cleaner. It's a classic!\n\nThere's nowhere to plug in the vacuum. You look closer and realize it has a space for a battery pack."; 
+                break;
+        case OBJ_SHOVEL:
+                gl_msg = "A rounded-point spade with a handle. Clearly meant for serious digging and planting. Somebody obviously once tended the yard."; 
+                break;
+        case OBJ_MATCHES:
+                gl_msg = "A small blue and red box of Diamond safety matches with a rough orange side for striking. You shake the box and hear the satisfying sound of matches. Sounds like it's still full."; 
+                break;
+        case OBJ_ROPE:
+                if(!gl_state.carried[OBJ_ROPE] && gl_state.rm == ROOM_TREE) "The thick, braided hangs from the tree. It moves gently in the breeze. You give it an experimental tug. Seems sturdy enough to support your weight."; 
+                else gl_msg = "A coil of thick, braided rope that you found hanging from a tree. You believe it sturdy enough to support your weight."; 
+                break;
+        case OBJ_AXE:
+                gl_msg = "An old axe for chopping firewood. The wooden handle feels a bit weak, but sturdy enough to get the job done. The steel blade hasn't been sharpened in some time, but it can still cut if you use enough force. You resist the urge to 'axe' it a question."; 
+                break;
+        case OBJ_CANDLE:
+                gl_msg = "A long-stemmed candle, perfect for lighting the way. You'll need something to prevent the wax from dripping on your hands. Not to mention a method of lighting it.\n\nYou wonder to yourself exactly how old this house is. Didn't they have electricity?";
+                break;
+        case OBJ_CANDLESTICK:
+                gl_msg = "An ornate silver candlestick for keeping hot wax from dripping onto a table. Looks like real silver. Might be worth something...";
+                break;
+        case OBJ_PAINTING:
+                gl_msg = "You stare into the knowing eyes of the long-passed Fairchild heiress. Her posture is regal. She looks beautiful.\n\nThe painting is so lifelike, you could swear she's staring back at you. You get a bit uneasy. Maybe a bit too lifelike.";
+                break;
+        case OBJ_BATTERIES:
+                gl_msg = "Looks like a battery pack for some sort of heavy-duty equipment. The label is faded by time. You concentrate on the label and barely make out the brand-name, 'Electrolux'.\n\nYou wonder if these batteries still hold a charge. And if so... how much?";
+                break;
+        case OBJ_AEROSOL:
+                gl_msg = "A rusty old can of pest repellent. You shake it a bit and can hear liquid sloshing around. The state of the can makes you a bit nervous. Best to only use in an emergency.";
+                break;
+        case OBJ_BOAT:
+                gl_msg = "It's a boat. Yeah, you're not exactly an expert in these things. To you, a boat is a boat is a boat.\n\nThe paddles are sitting inside the hull in case you decide to go for a ride.";
                 break;
     }
 }
@@ -812,9 +864,15 @@ void dig()
 void swing()
 {
     if (gl_state.rm == ROOM_TREE && !gl_state.carried[OBJ_ROPE]) 
-        gl_msg = "THIS IS NO TIME TO PLAY GAMES";
+    {
+        gl_msg = "You fancy yourself Tarzan as you swing on the rope! You consider doing the yell and really getting into it, but then you realize that you need to get back to your search.";
+    }
+    
     if (gl_ob == OBJ_ROPE && gl_state.carried[OBJ_ROPE])
-        gl_msg = "YOU SWUNG IT";
+    {
+        gl_msg = "You tie a lasso and swing the rope around your head. Yeeehaa! Now if only there were some varmints around!";
+    }
+    
     if (gl_ob == OBJ_AXE && gl_state.carried[OBJ_AXE])
     {
         if (gl_state.rm == ROOM_STUDY)
@@ -823,7 +881,7 @@ void swing()
             strcpy(gl_state.desc [gl_state.rm], "STUDY WITH SECRET ROOM");
             strcpy(gl_state.route[gl_state.rm], "WN");
         }
-        else gl_msg = "WHOOSH!";
+        else gl_msg = "WHOOSH! Completely pointless, but satisfying. You should put the axe away before you hurt yourself.";
     }
 }
 
@@ -1114,10 +1172,10 @@ int action(char *target)
     
     while(1)
     {
-        renderer_fill_rect(160, 4, display_width - 100, (height * (verbs+1)) + 12, 0x66, 0x66, 0x66);
-        renderer_fill_rect(162, 6, display_width - 64, (height * (verbs+1)) + 8, 0xAA, 0xAA, 0xAA);
+        renderer_fill_rect(160, 4, 84, (height * (verbs+1)) + 10, 0x66, 0x66, 0x66);
+        renderer_fill_rect(162, 6, 82, (height * (verbs+1)) + 6, 0xAA, 0xAA, 0xAA);
         
-        cursor.x = 166;
+        cursor.x = 176;
         cursor.y = 10;
         
         for(int i=8; i<=25; i++) // TODO: Better define limit of commands
@@ -1129,7 +1187,7 @@ int action(char *target)
             
             print_text(gl_vocab.verb[i]);
             
-            cursor.x = 166;
+            cursor.x = 176;
             cursor.y += height;
         }
         
@@ -1138,7 +1196,7 @@ int action(char *target)
         if(command == 'A')
         {
             strcpy(target, gl_vocab.verb[index]);
-printf("Object count is %d, ", object_count());
+            
             if(index > 9 && object_count() > 0) 
             {
                 length = strlen(target);
@@ -1157,8 +1215,11 @@ printf("Object count is %d, ", object_count());
             return 0;
         }
         
-        if(command == 'N') index = (index <= 8 ? 8 : index-1);
-        if(command == 'S') index = (index >= 25 ? 25 : index+1);
+        if(command == 'N') index--;
+        if(command == 'S') index++;
+        
+        if(index < 8) index += (25-8+1);
+        if(index > 25) index -= (25-8+1);
     }
 }
 
@@ -1170,14 +1231,17 @@ int subaction(char *target, int location)
     int count = object_count();
     int height = renderer_font_height() + 2;
     int window_height = count * height;
+    int max_height = location + window_height + 10;
     
     int index = 0;
     int i;
     
+    if(max_height > display_height) location -= (max_height - display_height);
+    
     while(1)
     {
-        renderer_fill_rect(200, location - 6, display_width - 140, location + window_height + 12, 0x66, 0x66, 0x66);
-        renderer_fill_rect(202, location - 4, display_width - 64, location + window_height + 8, 0xAA, 0xAA, 0xAA);
+        renderer_fill_rect(200, location - 6, 84, window_height + 10, 0x66, 0x66, 0x66);
+        renderer_fill_rect(202, location - 4, 82, window_height + 6, 0xAA, 0xAA, 0xAA);
         
         cursor.x = 206;
         cursor.y = location;
@@ -1211,8 +1275,11 @@ int subaction(char *target, int location)
             return 0;
         }
         
-        if(command == 'N') index = (index <= 0 ? 0 : index-1);
-        if(command == 'S') index = (index >= count-1 ? count-1 : index+1);
+        if(command == 'N') index--;
+        if(command == 'S') index++;
+        
+        if(index < 0) index += count;
+        if(index >= count) index -= count;
     }
 }
 
@@ -1220,6 +1287,41 @@ char* get_object(int index)
 {
     int object = 0;
     int i;
+    
+    // We've climbed the tree
+    if(gl_state.flag[OBJ_ROPE]) 
+    {
+        if(object == index) return gl_vocab.obj[OBJ_ROPE];
+        
+        object++;
+    }
+    
+    // We're using the boat
+    if(gl_state.carried[OBJ_BOAT]) 
+    {
+        if(object == index) return gl_vocab.obj[OBJ_BOAT];
+        
+        object++;
+    }
+    
+    // Desk and Drawer
+    if(gl_state.rm == ROOM_STUDY)
+    {
+        if(object == index) return gl_vocab.obj[OBJ_DESK];
+        
+        object++;
+        
+        if(object == index) return gl_vocab.obj[OBJ_DRAWER];
+        
+        object++;
+    }
+    
+    if(gl_state.rm == ROOM_REARTURRET && gl_state.flag[OBJ_BATS])
+    {
+        if(object == index) return gl_vocab.obj[OBJ_BATS];
+        
+        object++;
+    }
     
     // Objects in the room
     for(i = 1; i <= OBJECT_COUNT; i++)
@@ -1250,6 +1352,12 @@ int object_count()
 {
     int count = 0;
     int i;
+    
+    // We've climbed the tree or used the boat
+    if(gl_state.flag[OBJ_ROPE]) count++;
+    if(gl_state.carried[OBJ_BOAT]) count++;
+    if(gl_state.rm == ROOM_STUDY) count += 2; // Drawer and Desk
+    if(gl_state.rm == ROOM_REARTURRET && gl_state.flag[OBJ_BATS]) count++;
     
     // Objects in the room
     for(i = 1; i <= OBJECT_COUNT; i++)

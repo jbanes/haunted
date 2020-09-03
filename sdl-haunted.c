@@ -182,6 +182,9 @@ SDL_Surface* screen;
 gfx_cursor cursor;
 char gamePath[256];
 
+int read_xzanfar = 0;
+int examine_desk = 0;
+
 /* Prototypes for what, in BASIC, would be line-numbered subroutines */
 void inventory();
 void move();
@@ -354,11 +357,11 @@ void clear()
     char *name = "HAUNTED HOUSE";
     
     cursor.x = 0;
-    cursor.y = renderer_font_height() + 8;
+    cursor.y = height + 8;
     title.x -= renderer_font_width(name)/2;
     
     renderer_clear(0, 0, 0);
-    renderer_fill_rect(0, 0, display_width, renderer_font_height() + 4, 0x00, 0x00, 0x66);
+    renderer_fill_rect(0, 0, display_width, height + 4, 0x00, 0x00, 0x66);
     renderer_font_print(&title, name);
     
     // Compute score
@@ -372,11 +375,20 @@ void clear()
         if(gl_state.rm == ROOM_GATE) score *= 2;
     }
     
+    // Print score
     sprintf(text, "Score: %d", score);
     
     title.x = display_width - renderer_font_width(text) - 2;
     
     renderer_font_print(&title, text);
+    
+    // Print candle when lit
+    if(gl_state.flag[OBJ_NULL])
+    {
+        title.x = 2;
+        renderer_font_print(&title, "Candle:");
+        renderer_fill_rect(renderer_font_width("Candle:") + 4, 4, gl_state.ll, 6, 0xFF, 0xFF, 0xFF);
+    }
 }
 
 int main(int argc, char **argv)
@@ -431,8 +443,7 @@ int main(int argc, char **argv)
         {
             continue;
         }
-printf("Command: [%s]\n", gl_command);
-fflush(stdout);
+        
         /* Remove trailing newline, if present */
         s = strchr(gl_command, '\n');
         if (s) *s = 0;    
@@ -700,6 +711,10 @@ void move()
        gl_msg = "THE DOOR SLAMS SHUT!";
        gl_state.flag[OBJ_UP] = 0;
     }
+    if(gl_state.rm == ROOM_GATE && gl_state.carried[OBJ_PAINTING])
+    {
+        score();
+    }
 }
 
 
@@ -765,6 +780,7 @@ void examine()
         case OBJ_DRAWER:
         case OBJ_DESK: 
                 gl_msg = "You carefully examine the desk from all sides. The only thing you find is a single DRAWER."; 
+                examine_desk = 1;
                 break;
         case OBJ_BOOKS:
         case OBJ_SCROLL:  
@@ -824,6 +840,7 @@ void vread()
         gl_state.flag[OBJ_XZANFAR] == 0)
     {
         gl_msg = "USE THIS WORD WITH CARE 'XZANFAR'";
+        read_xzanfar = 1;
     }
     if (gl_state.carried[OBJ_SCROLL] && gl_ob == OBJ_SCROLL) 
     {
@@ -1002,19 +1019,20 @@ void score()
         if (gl_state.rm == ROOM_GATE)
         {
             s *= 2;
-            print_text("DOUBLE SCORE FOR REACHING HERE!\n");
+//            print_text("DOUBLE SCORE FOR REACHING HERE!\n");
         }
-        else
-        {
-            print_text("YOU HAVE EVERYTHING\nRETURN TO THE GATE FOR FINAL SCORE\n");
-        }
+//        else
+//        {
+//            print_text("YOU HAVE EVERYTHING\nRETURN TO THE GATE FOR FINAL SCORE\n");
+//        }
     }
-    sprintf(text, "YOUR SCORE=%d\n", s);
+    sprintf(text, "\n\nFINAL SCORE = %d\n\n", s);
     print_text(text);
     if (s > 18)
     {
         print_text("WELL DONE! YOU FINISHED THE GAME\n");
-        exit(0);
+        while(1) getkey();
+//        exit(0);
     }
     getkey();
 }
@@ -1186,6 +1204,27 @@ char* object_command(int verb, int offset)
                 }
             }
             break;
+        case VERB_LIGHT:
+            if(gl_state.carried[OBJ_CANDLE] && !gl_state.flag[OBJ_NULL]) return gl_vocab.obj[OBJ_CANDLE];
+            break;
+        case VERB_OPEN:
+            if(gl_state.rm == ROOM_STUDY && examine_desk) return gl_vocab.obj[OBJ_DRAWER];
+            if(gl_state.rm == ROOM_THICKDOOR) return gl_vocab.obj[OBJ_DOOR];
+            if(gl_state.rm == ROOM_DEEPCELLAR) return gl_vocab.obj[OBJ_COFFIN];
+            break;
+        case VERB_READ:
+            if(gl_state.rm == ROOM_LIBRARY && offset == count) return gl_vocab.obj[OBJ_BOOKS];
+            count++;
+            if(gl_state.carried[OBJ_SCROLL] && offset == count) return gl_vocab.obj[OBJ_SCROLL];
+            count++;
+            if(gl_state.carried[OBJ_SPELLS] && gl_state.flag[OBJ_XZANFAR] == 0) return gl_vocab.obj[OBJ_SPELLS];
+            break;
+        case VERB_SAY:
+            if(read_xzanfar) return gl_vocab.obj[OBJ_XZANFAR];
+            break;
+        case VERB_SPRAY:
+            if(gl_state.carried[OBJ_AEROSOL] && gl_state.rm == ROOM_REARTURRET && gl_state.flag[OBJ_BATS]) return gl_vocab.obj[OBJ_BATS];
+            break;
         case VERB_SWING:
             if(gl_state.carried[OBJ_AXE] && offset == 0) return gl_vocab.obj[OBJ_AXE];
             else return gl_vocab.obj[OBJ_ROPE];
@@ -1200,6 +1239,15 @@ char* object_command(int verb, int offset)
                     count++;
                 }
             }
+            break;
+        case VERB_UNLIGHT:
+            if(gl_state.carried[OBJ_CANDLE] && gl_state.flag[OBJ_NULL]) return gl_vocab.obj[OBJ_CANDLE];
+            break;
+        case VERB_UNLOCK:
+            if(gl_state.rm == ROOM_THICKDOOR && gl_state.carried[OBJ_KEY]) return gl_vocab.obj[OBJ_DOOR];
+            break;
+        case VERB_USE:
+            if(gl_state.carried[OBJ_VACUUM]) return gl_vocab.obj[OBJ_VACUUM];
             break;
         default:
             return get_object(offset);
@@ -1230,6 +1278,25 @@ void object_counts(int verbs, int *commands, int *counts)
                     if(gl_state.carried[i]) count++;
                 }
                 break;
+            case VERB_LIGHT:
+                if(gl_state.carried[OBJ_CANDLE] && !gl_state.flag[OBJ_NULL]) count++;
+                break;
+            case VERB_OPEN:
+                if(gl_state.rm == ROOM_STUDY && examine_desk) count++; 
+                if(gl_state.rm == ROOM_THICKDOOR) count++;
+                if(gl_state.rm == ROOM_DEEPCELLAR) count++;
+                break;
+            case VERB_READ:
+                if(gl_state.rm == ROOM_LIBRARY) count++;
+                if(gl_state.carried[OBJ_SCROLL]) count++;
+                if(gl_state.carried[OBJ_SPELLS] && gl_state.flag[OBJ_XZANFAR] == 0) count++;
+                break;
+            case VERB_SAY:
+                if(read_xzanfar) count++;
+                break;
+            case VERB_SPRAY:
+                if(gl_state.carried[OBJ_AEROSOL] && gl_state.rm == ROOM_REARTURRET && gl_state.flag[OBJ_BATS]) count++;
+                break;
             case VERB_SWING:
                 if(gl_state.carried[OBJ_AXE]) count++;
                 if(gl_state.rm == ROOM_TREE && !gl_state.carried[OBJ_ROPE]) count++;
@@ -1239,6 +1306,15 @@ void object_counts(int verbs, int *commands, int *counts)
                 {
                     if(gl_state.location[i] == gl_state.rm && gl_state.flag[i] == 0) count++;
                 }
+                break;
+            case VERB_UNLIGHT:
+                if(gl_state.carried[OBJ_CANDLE] && gl_state.flag[OBJ_NULL]) count++;
+                break;
+            case VERB_UNLOCK:
+                if(gl_state.rm == ROOM_THICKDOOR && gl_state.carried[OBJ_KEY]) count++;
+                break;
+            case VERB_USE:
+                if(gl_state.carried[OBJ_VACUUM]) count++;
                 break;
             default:
                 count = object_count();
@@ -1259,12 +1335,12 @@ int action(char *target)
     int total = 0;
     int selected = 0;
     
-    int verbs = 13;
-    int counts[13];
-    int commands[13] = {
+    int verbs = 14;
+    int counts[14];
+    int commands[14] = {
         VERB_CLIMB, VERB_DIG, VERB_EXAMINE, VERB_OPEN, VERB_LEAVE, VERB_LIGHT,
         VERB_READ, VERB_SAY, VERB_SPRAY, VERB_SWING, VERB_TAKE, VERB_UNLIGHT,
-        VERB_UNLOCK
+        VERB_UNLOCK, VERB_USE
     };
     
     // Load command sub-action counts
@@ -1420,7 +1496,7 @@ char* get_object(int index)
         
         object++;
         
-        if(object == index) return gl_vocab.obj[OBJ_DRAWER];
+        if(object == index) return gl_vocab.obj[OBJ_WALL];
         
         object++;
     }
@@ -1428,6 +1504,27 @@ char* get_object(int index)
     if(gl_state.rm == ROOM_REARTURRET && gl_state.flag[OBJ_BATS])
     {
         if(object == index) return gl_vocab.obj[OBJ_BATS];
+        
+        object++;
+    }
+    
+    if(gl_state.rm == ROOM_CUPBOARD)
+    {
+        if(object == index) return gl_vocab.obj[OBJ_COAT];
+        
+        object++;
+    }
+    
+    if(gl_state.rm == ROOM_YARD)
+    {
+        if(object == index) return gl_vocab.obj[OBJ_RUBBISH];
+        
+        object++;
+    }
+    
+    if(gl_state.rm == ROOM_DEEPCELLAR)
+    {
+        if(object == index) return gl_vocab.obj[OBJ_COFFIN];
         
         object++;
     }
@@ -1465,7 +1562,10 @@ int object_count()
     // We've climbed the tree or used the boat
     if(gl_state.flag[OBJ_ROPE]) count++;
     if(gl_state.carried[OBJ_BOAT]) count++;
-    if(gl_state.rm == ROOM_STUDY) count += 2; // Drawer and Desk
+    if(gl_state.rm == ROOM_STUDY) count += 2; // Desk and Wall
+    if(gl_state.rm == ROOM_CUPBOARD) count++;
+    if(gl_state.rm == ROOM_YARD) count++;
+    if(gl_state.rm == ROOM_DEEPCELLAR) count++;
     if(gl_state.rm == ROOM_REARTURRET && gl_state.flag[OBJ_BATS]) count++;
     
     // Objects in the room

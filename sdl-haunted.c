@@ -184,6 +184,7 @@ char gamePath[256];
 
 int read_xzanfar = 0;
 int examine_desk = 0;
+int intro = 1;
 
 /* Prototypes for what, in BASIC, would be line-numbered subroutines */
 void inventory();
@@ -347,6 +348,19 @@ void initialise()
     gl_msg = "OK";
 }
 
+void print_options(char *left, char *right)
+{
+   int width = renderer_font_width(right); 
+   int height = renderer_font_height();
+   
+   gfx_cursor left_cur = { 2, display_height - height - 2 };
+   gfx_cursor right_cur = { display_width - width - 2, display_height - height - 2 };
+   
+   renderer_fill_rect(0, display_height - height - 4, display_width, height + 4, 0xAA, 0x37, 0x00);
+   renderer_font_print(&left_cur, left);
+   renderer_font_print(&right_cur, right);
+}
+
 void clear()
 {
     int score = 0, i = 0;
@@ -389,6 +403,9 @@ void clear()
         renderer_font_print(&title, "Candle:");
         renderer_fill_rect(renderer_font_width("Candle:") + 4, 4, gl_state.ll, 6, 0xFF, 0xFF, 0xFF);
     }
+    
+    if(object_count() > 0) print_options("Exit (Select)", "Actions (A)");
+    else print_options("Exit (Select)", " ");
 }
 
 int main(int argc, char **argv)

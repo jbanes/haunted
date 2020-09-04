@@ -601,24 +601,118 @@ int main(int argc, char **argv)
 
 void inventory()
 {
-    int i, j;
-    char text[256];
-
-    print_text("YOU ARE CARRYING:\n");
-    for (i = 1, j = 0; i <= OBJECT_COUNT; i++)
+    int count = 17;
+    int items[17] = {
+        OBJ_AEROSOL,    OBJ_AXE,            OBJ_BATTERIES,
+        OBJ_CANDLE,     OBJ_CANDLESTICK,    OBJ_COINS,
+        OBJ_GOBLET,     OBJ_KEY,            OBJ_MATCHES,
+        OBJ_PAINTING,   OBJ_RING,           OBJ_ROPE,
+        OBJ_SCROLL,     OBJ_SHOVEL,         OBJ_SPELLS,
+        OBJ_STATUE,     OBJ_VACUUM
+    };
+    
+    char command;
+    char text[1024];
+    gfx_cursor inventory_cursor;
+    
+    int x = 0;
+    int y = 0;
+    int move_x = 0;
+    int move_y = 0;
+    int index;
+    
+    int height = renderer_font_height();
+    int offset_x = (display_width - (20 * 2)) / 3;
+    int offset_y = (display_height - (height * 3) - (8 * 2) - 16) / 6;
+    int notempty = 0;
+    
+    inventory_cursor.x = 0;
+    inventory_cursor.y = 0;
+    
+    for(int i=0; i<count; i++) notempty += gl_state.carried[items[i]];
+    
+    if(!notempty) return;
+    
+    while(1)
     {
-        if (gl_state.carried[i])
+        clear();
+        
+        cursor.x = (display_width - renderer_font_width("INVENTORY")) / 2;
+        cursor.y = height + 16;
+        
+        renderer_fill_rect(2, height + 8, display_width - 4, display_height - (height * 2) - 20, 0x66, 0x66, 0x66);
+        renderer_fill_rect(4, height + 10, display_width - 6, display_height - (height * 2) - 20, 0xAA, 0xAA, 0xAA);
+        renderer_font_print(&cursor, "INVENTORY");
+        
+        for(int i=0; i<count; i++)
         {
-            /* Again, it would be better to be rid of the trailing comma */
-            if (j) writechar(',');
-            j++;
-            sprintf(text, "%s,", gl_vocab.obj[i]);
-            print_text(text);
+            cursor.x = 20 + (x * offset_x);
+            cursor.y = height + 16 + height + 16 + (y * offset_y);
+            
+            if(i == (inventory_cursor.y * 3 + inventory_cursor.x))
+            {
+                renderer_fill_rect(cursor.x - 1, cursor.y - 1, renderer_font_width(gl_vocab.obj[items[i]]) + 2, height + 2, 0x00, 0x00, 0x00);
+            }
+            
+            if(gl_state.carried[items[i]])
+            {
+                renderer_font_print(&cursor, gl_vocab.obj[items[i]]);
+            
+                x++;
+
+                if(x >= 3)
+                {
+                    y++;
+                    x = 0;
+                }
+            }
         }
+        
+        command = getkey();
+        
+        if(command == 'A')
+        {
+            gl_vb = VERB_EXAMINE;
+            gl_ob = items[(inventory_cursor.y * 3 + inventory_cursor.x)];
+            
+            clear();
+            examine();
+            sprintf(text, "\nExamine %s\n=========================\n%s\n", gl_vocab.obj[gl_ob], gl_msg);
+            print_text(text);
+            getkey();
+            
+            return;
+        }
+        
+        if(command == 'B') return;
+        if(command == 'N') move_y = -3;
+        if(command == 'E') move_x = 1;
+        if(command == 'S') move_y = 3;
+        if(command == 'W') move_x = -1;
+            
+        if(move_x != 0 || move_y != 0)    
+        {
+            index = (inventory_cursor.y * 3 + inventory_cursor.x);
+            
+            do
+            {
+                index += move_x + move_y;
+                
+                while(index < 0) index += count;
+                while(index >= count) index -= count;
+                
+                inventory_cursor.x = index%3;
+                inventory_cursor.y = index/3;
+            }
+            while(!gl_state.carried[items[index]]);
+            
+            move_x = 0;
+            move_y = 0;
+        }
+        
+        x = 0;
+        y = 0;
     }
-    writechar('\n');
-    gl_msg = "";
-    getkey();
 }
 
 void move()
@@ -1179,11 +1273,13 @@ int read_command(char *target)
     {
         return action(target);
     }
-    else
+    else if(command == 'X')
     {
-        target[0] = command;
-        target[1] = '\0';
+        inventory(target);
     }
+
+    target[0] = command;
+    target[1] = '\0';
     
     return 1;
 }

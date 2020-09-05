@@ -1690,14 +1690,5 @@ int object_count()
         }
     }
     
-    // Inventory objects
-    for(i = 1; i <= OBJECT_COUNT; i++)
-    {
-        if(gl_state.carried[i])
-        {
-            count++;
-        }
-    }
-    
     return count;
 }

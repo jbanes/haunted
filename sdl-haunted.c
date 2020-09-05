@@ -1327,9 +1327,9 @@ char* object_command(int verb, int offset)
             break;
         case VERB_READ:
             if(gl_state.rm == ROOM_LIBRARY && offset == count) return gl_vocab.obj[OBJ_BOOKS];
-            count++;
+            if(gl_state.rm == ROOM_LIBRARY) count++;
             if(gl_state.carried[OBJ_SCROLL] && offset == count) return gl_vocab.obj[OBJ_SCROLL];
-            count++;
+            if(gl_state.carried[OBJ_SCROLL]) count++;
             if(gl_state.carried[OBJ_SPELLS] && gl_state.flag[OBJ_XZANFAR] == 0) return gl_vocab.obj[OBJ_SPELLS];
             break;
         case VERB_SAY:

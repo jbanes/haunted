@@ -605,9 +605,9 @@ void inventory()
     int items[17] = {
         OBJ_AEROSOL,    OBJ_AXE,            OBJ_BATTERIES,
         OBJ_CANDLE,     OBJ_CANDLESTICK,    OBJ_COINS,
-        OBJ_GOBLET,     OBJ_KEY,            OBJ_MATCHES,
-        OBJ_PAINTING,   OBJ_RING,           OBJ_ROPE,
-        OBJ_SCROLL,     OBJ_SHOVEL,         OBJ_SPELLS,
+        OBJ_GOBLET,     OBJ_KEY,            OBJ_SPELLS,
+        OBJ_MATCHES,    OBJ_PAINTING,       OBJ_RING,
+        OBJ_ROPE,       OBJ_SCROLL,         OBJ_SHOVEL,
         OBJ_STATUE,     OBJ_VACUUM
     };
     
@@ -689,6 +689,41 @@ void inventory()
         if(command == 'E') move_x = 1;
         if(command == 'S') move_y = 3;
         if(command == 'W') move_x = -1;
+        
+        if(move_y > 0)
+        {
+            move_y = 0;
+            index = (inventory_cursor.y * 3 + inventory_cursor.x);
+            
+            while(move_y < 3)
+            {
+                index++;
+                
+                if(index >= count) index -= count;
+                if(gl_state.carried[items[index]]) move_y++;
+            }
+            
+            inventory_cursor.x = index%3;
+            inventory_cursor.y = index/3;
+            move_y = 0;
+        }
+        else if(move_y < 0)
+        {
+            move_y = 0;
+            index = (inventory_cursor.y * 3 + inventory_cursor.x);
+            
+            while(move_y > -3)
+            {
+                index--;
+                
+                if(index < 0) index += count;
+                if(gl_state.carried[items[index]]) move_y--;
+            }
+            
+            inventory_cursor.x = index%3;
+            inventory_cursor.y = index/3;
+            move_y = 0;
+        }
             
         if(move_x != 0 || move_y != 0)    
         {

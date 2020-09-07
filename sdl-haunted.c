@@ -404,8 +404,7 @@ void clear()
         renderer_fill_rect(renderer_font_width("Candle:") + 4, 4, gl_state.ll, 6, 0xFF, 0xFF, 0xFF);
     }
     
-    if(object_count() > 0) print_options("Exit (Select)", "Actions (A)");
-    else print_options("Exit (Select)", " ");
+    print_options("Exit (Select)", "Inventory (X) / Actions (A)");
 }
 
 int main(int argc, char **argv)
@@ -599,6 +598,86 @@ int main(int argc, char **argv)
     return 0;
 }
 
+void inventory_actions(int object, int offsetx, int offsety)
+{
+    char command;
+    char text[1024];
+    
+    int count = 2;
+    int options[2] = {
+        VERB_EXAMINE, VERB_LEAVE
+    };
+    
+    int height = renderer_font_height() + 2;
+    int window_height = count * height;
+    int max_height = offsety + window_height + 10;
+    
+    int index = 0;
+    int i;
+    
+    if(max_height > display_height) offsety -= (max_height - display_height);
+    if(offsety - 6 < renderer_font_height()) offsety = renderer_font_height() + 6;
+    
+    while(1)
+    {
+        renderer_fill_rect(offsetx - 6, offsety - 6, 86, window_height + 10, 0x66, 0x66, 0x66);
+        renderer_fill_rect(offsetx - 4, offsety - 4, 82, window_height + 6, 0x99, 0x99, 0x99);
+        
+        cursor.x = offsetx;
+        cursor.y = offsety;
+        
+        for(i = 0; i < count; i++)
+        {
+            if(i == index)
+            {
+                renderer_fill_rect(cursor.x - 1, cursor.y - 1, renderer_font_width(gl_vocab.verb[options[i]]) + 2, renderer_font_height() + 2, 0x00, 0x00, 0x00);
+            }
+
+            print_text(gl_vocab.verb[options[i]]);
+
+            cursor.x = offsetx;
+            cursor.y += height;
+        }
+        
+        command = getkey();
+        
+        if(command == 'N') index = (index - 1) % count;
+        if(command == 'S') index = (index + 1) % count;
+        if(command == 'B') return;
+        
+        if(command == 'A')
+        {
+            if(options[index] == VERB_EXAMINE)
+            {
+                gl_vb = VERB_EXAMINE;
+                gl_ob = object;
+
+                clear();
+                examine();
+                sprintf(text, "\nExamine %s\n=========================\n%s\n", gl_vocab.obj[gl_ob], gl_msg);
+                print_text(text);
+                getkey();
+                
+                return;
+            }
+            else if(options[index] == VERB_LEAVE)
+            {
+                gl_vb = VERB_LEAVE;
+                gl_ob = object;
+
+                clear();
+                leave();
+                sprintf(text, "\nYou leave behind %s\n", gl_vocab.obj[gl_ob]);
+                print_text(text);
+                getkey();
+                
+                return;
+            }
+        }
+    }
+    
+}
+
 void inventory()
 {
     int count = 17;
@@ -612,8 +691,8 @@ void inventory()
     };
     
     char command;
-    char text[1024];
     gfx_cursor inventory_cursor;
+    gfx_cursor selected;
     
     int x = 0;
     int y = 0;
@@ -626,12 +705,21 @@ void inventory()
     int offset_y = (display_height - (height * 3) - (8 * 2) - 16) / 6;
     int notempty = 0;
     
-    inventory_cursor.x = 0;
-    inventory_cursor.y = 0;
-    
+    // Check if the menu has any items
     for(int i=0; i<count; i++) notempty += gl_state.carried[items[i]];
     
     if(!notempty) return;
+    
+    // Find first item
+    for(int i=0; i<count; i++)
+    {
+        if(gl_state.carried[items[i]])
+        {
+            inventory_cursor.x = i%3;
+            inventory_cursor.y = i/3;
+            break;
+        }
+    }
     
     while(1)
     {
@@ -641,7 +729,7 @@ void inventory()
         cursor.y = height + 16;
         
         renderer_fill_rect(2, height + 8, display_width - 4, display_height - (height * 2) - 20, 0x66, 0x66, 0x66);
-        renderer_fill_rect(4, height + 10, display_width - 6, display_height - (height * 2) - 20, 0xAA, 0xAA, 0xAA);
+        renderer_fill_rect(4, height + 10, display_width - 6, display_height - (height * 2) - 20, 0x99, 0x99, 0x99);
         renderer_font_print(&cursor, "INVENTORY");
         
         for(int i=0; i<count; i++)
@@ -649,13 +737,16 @@ void inventory()
             cursor.x = 20 + (x * offset_x);
             cursor.y = height + 16 + height + 16 + (y * offset_y);
             
-            if(i == (inventory_cursor.y * 3 + inventory_cursor.x))
-            {
-                renderer_fill_rect(cursor.x - 1, cursor.y - 1, renderer_font_width(gl_vocab.obj[items[i]]) + 2, height + 2, 0x00, 0x00, 0x00);
-            }
-            
             if(gl_state.carried[items[i]])
             {
+                if(i == (inventory_cursor.y * 3 + inventory_cursor.x))
+                {
+                    renderer_fill_rect(cursor.x - 1, cursor.y - 1, renderer_font_width(gl_vocab.obj[items[i]]) + 2, height + 2, 0x00, 0x00, 0x00);
+
+                    selected.x = x;
+                    selected.y = y;
+                }
+                
                 renderer_font_print(&cursor, gl_vocab.obj[items[i]]);
             
                 x++;
@@ -672,14 +763,11 @@ void inventory()
         
         if(command == 'A')
         {
-            gl_vb = VERB_EXAMINE;
-            gl_ob = items[(inventory_cursor.y * 3 + inventory_cursor.x)];
+            index = (inventory_cursor.y * 3 + inventory_cursor.x);
+            x = 20 + (selected.x * offset_x);
+            y = height + 16 + height + 16 + (selected.y * offset_y);
             
-            clear();
-            examine();
-            sprintf(text, "\nExamine %s\n=========================\n%s\n", gl_vocab.obj[gl_ob], gl_msg);
-            print_text(text);
-            getkey();
+            inventory_actions(items[index], x + 25, y + 10);
             
             return;
         }
@@ -933,7 +1021,10 @@ void examine()
                 vread(); 
                 break;
         case OBJ_WALL: 
-                if(gl_state.rm == ROOM_STUDY) gl_msg = "THERE IS SOMETHING BEYOND..."; 
+                if(gl_state.rm == ROOM_STUDY) 
+                {
+                    gl_msg = "You take a moment to examine the small hole in the northern wall. It looks like someone accidentally nicked the surface. You attempt to look inside to see how deep it is, but you see nothing but darkness. A small breeze through the hole dries your eyes.\n\nYou take a step back and look at the wall. Looks like drywall. Probably added later on. Was the drywall added as a quick repair? Or was something sealed off?"; 
+                }
                 break;
         case OBJ_COFFIN: 
                 vopen(); 
@@ -1500,7 +1591,7 @@ int action(char *target)
     while(1)
     {
         renderer_fill_rect(160, 4, 84, (height * total) + 10, 0x66, 0x66, 0x66);
-        renderer_fill_rect(162, 6, 82, (height * total) + 6, 0xAA, 0xAA, 0xAA);
+        renderer_fill_rect(162, 6, 82, (height * total) + 6, 0x99, 0x99, 0x99);
         
         cursor.x = 176;
         cursor.y = 10;
@@ -1574,7 +1665,7 @@ int subaction(char *target, int verb, int count, int location)
     while(1)
     {
         renderer_fill_rect(200, location - 6, 84, window_height + 10, 0x66, 0x66, 0x66);
-        renderer_fill_rect(202, location - 4, 82, window_height + 6, 0xAA, 0xAA, 0xAA);
+        renderer_fill_rect(202, location - 4, 82, window_height + 6, 0x99, 0x99, 0x99);
         
         cursor.x = 206;
         cursor.y = location;

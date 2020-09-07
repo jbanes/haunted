@@ -667,7 +667,7 @@ void inventory_actions(int object, int offsetx, int offsety)
 
                 clear();
                 leave();
-                sprintf(text, "\nYou leave behind %s\n", gl_vocab.obj[gl_ob]);
+                sprintf(text, "\nYou leave the %s behind\n", gl_vocab.obj[gl_ob]);
                 print_text(text);
                 getkey();
                 
@@ -1574,10 +1574,10 @@ int action(char *target)
     int total = 0;
     int selected = 0;
     
-    int verbs = 14;
-    int counts[14];
-    int commands[14] = {
-        VERB_CLIMB, VERB_DIG, VERB_EXAMINE, VERB_OPEN, VERB_LEAVE, VERB_LIGHT,
+    int verbs = 13;
+    int counts[13];
+    int commands[13] = {
+        VERB_CLIMB, VERB_DIG, VERB_EXAMINE, VERB_OPEN, VERB_LIGHT,
         VERB_READ, VERB_SAY, VERB_SPRAY, VERB_SWING, VERB_TAKE, VERB_UNLIGHT,
         VERB_UNLOCK, VERB_USE
     };

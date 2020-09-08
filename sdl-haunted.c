@@ -361,6 +361,12 @@ void print_options(char *left, char *right)
    renderer_font_print(&right_cur, right);
 }
 
+void more()
+{
+    print_options(" ", "More...");
+    getkey();
+}
+
 void clear()
 {
     int score = 0, i = 0;
@@ -598,7 +604,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void inventory_actions(int object, int offsetx, int offsety)
+int inventory_actions(int object, int offsetx, int offsety)
 {
     char command;
     char text[1024];
@@ -643,7 +649,7 @@ void inventory_actions(int object, int offsetx, int offsety)
         
         if(command == 'N') index = (index - 1) % count;
         if(command == 'S') index = (index + 1) % count;
-        if(command == 'B') return;
+        if(command == 'B') return 0;
         
         if(command == 'A')
         {
@@ -656,9 +662,9 @@ void inventory_actions(int object, int offsetx, int offsety)
                 examine();
                 sprintf(text, "\nExamine %s\n=========================\n%s\n", gl_vocab.obj[gl_ob], gl_msg);
                 print_text(text);
-                getkey();
+                more();
                 
-                return;
+                return 1;
             }
             else if(options[index] == VERB_LEAVE)
             {
@@ -669,9 +675,9 @@ void inventory_actions(int object, int offsetx, int offsety)
                 leave();
                 sprintf(text, "\nYou leave the %s behind\n", gl_vocab.obj[gl_ob]);
                 print_text(text);
-                getkey();
+                more();
                 
-                return;
+                return 1;
             }
         }
     }
@@ -767,9 +773,7 @@ void inventory()
             x = 20 + (selected.x * offset_x);
             y = height + 16 + height + 16 + (selected.y * offset_y);
             
-            inventory_actions(items[index], x + 25, y + 10);
-            
-            return;
+            if(inventory_actions(items[index], x + 25, y + 10)) return;
         }
         
         if(command == 'B') return;
